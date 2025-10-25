@@ -1,3 +1,6 @@
+// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\patient\presentation\pages\patients_page.dart
+
+import 'package:clinic_core/features/patient/presentation/pages/patient_form_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/patient_entity.dart';
@@ -5,7 +8,6 @@ import '../../data/models/patient_model.dart';
 import '../../data/datasources/patient_local_datasource.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/database/sqlite/database_helper.dart';
-import 'package:sqflite/sqflite.dart';
 
 // Data Source Provider
 final patientDataSourceProvider = Provider<PatientLocalDataSource>((ref) {
@@ -157,6 +159,31 @@ class PatientsPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Patients Management'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.cleaning_services),
+            tooltip: 'Clear Duplicate IDs',
+            onPressed: () async {
+              try {
+                await ref
+                    .read(patientDataSourceProvider)
+                    .clearDuplicateNationalIds();
+                ref.read(patientsProvider.notifier).loadPatients();
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Duplicate IDs cleared successfully')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () {
@@ -532,25 +559,6 @@ class _StatCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// Placeholder for now - add import when patient_form_page.dart is created
-class PatientFormPage extends StatelessWidget {
-  final PatientEntity? patient;
-
-  const PatientFormPage({super.key, this.patient});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(patient == null ? 'Add Patient' : 'Edit Patient'),
-      ),
-      body: const Center(
-        child: Text('Form will be implemented next'),
       ),
     );
   }

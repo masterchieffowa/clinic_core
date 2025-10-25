@@ -1,6 +1,7 @@
 // File Path: lib/features/dashboard/presentation/widgets/dashboard_home.dart
 // ✅ REPLACE YOUR CURRENT FILE WITH THIS (Uses REAL data from database)
 
+import 'package:clinic_core/features/patient/presentation/pages/patient_form_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -56,7 +57,7 @@ class DashboardHome extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // TODO: Add new patient
+          _addNewPatient(context, ref);
         },
         icon: const Icon(Icons.person_add_rounded),
         label: const Text('Add Patient'),
@@ -608,6 +609,14 @@ class DashboardHome extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _addNewPatient(BuildContext context, WidgetRef ref) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PatientFormPage(),
+      ),
     );
   }
 }

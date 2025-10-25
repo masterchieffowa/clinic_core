@@ -1,3 +1,5 @@
+// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\dashboard\presentation\widgets\dashboard_home.dart
+
 import 'package:clinic_core/features/auth/presentation/providers/dashboard_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

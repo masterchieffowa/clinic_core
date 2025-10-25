@@ -134,7 +134,6 @@ import 'package:clinic_core/core/database/local_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/database/local_database.dart';
 import 'core/di/injection.dart';
 import 'core/utils/logger_util.dart';
 import 'features/auth/presentation/pages/splash_page.dart';

@@ -1,3 +1,5 @@
+// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\dashboard\presentation\pages\dashboard_page.dart
+
 import '../../../patient/presentation/pages/patients_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

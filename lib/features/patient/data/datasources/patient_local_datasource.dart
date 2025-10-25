@@ -1,11 +1,12 @@
+// ============================================================================
+// File: lib/features/patient/data/datasources/patient_local_datasource.dart
+// ✅ FIXED VERSION - Handles null values and duplicate national IDs
+// ============================================================================
+
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/database/sqlite/database_helper.dart';
-import '../../../../core/database/hive/models/hive_service.dart';
-import '../../../../core/database/hive/models/patient_model.dart'
-    as hive_patient;
 import '../../../../core/utils/logger_util.dart';
-import '../../../../core/utils/date_util.dart';
 import '../models/patient_model.dart';
 
 class PatientLocalDataSource {
@@ -29,13 +30,23 @@ class PatientLocalDataSource {
             )
           : patient;
 
+      // Check if national ID already exists (if provided)
+      if (patientWithId.nationalId != null &&
+          patientWithId.nationalId!.isNotEmpty) {
+        final existing = await db.query(
+          'patients',
+          where: 'national_id = ?',
+          whereArgs: [patientWithId.nationalId],
+          limit: 1,
+        );
+
+        if (existing.isNotEmpty) {
+          throw Exception('Patient with this national ID already exists');
+        }
+      }
+
       // Insert into SQLite
       await db.insert('patients', patientWithId.toJson());
-
-      // Cache in Hive for fast access
-      await HiveService.savePatient(
-        hive_patient.PatientModel.fromJson(patientWithId.toJson()),
-      );
 
       LoggerUtil.info('Patient created: ${patientWithId.name}');
       return patientWithId;
@@ -64,13 +75,6 @@ class PatientLocalDataSource {
   // Get patient by ID
   Future<PatientModel?> getPatientById(String patientId) async {
     try {
-      // Try Hive first (faster)
-      final cachedPatient = HiveService.getPatient(patientId);
-      if (cachedPatient != null) {
-        return PatientModel.fromJson(cachedPatient.toJson());
-      }
-
-      // Fallback to SQLite
       final db = await _databaseHelper.database;
       final results = await db.query(
         'patients',
@@ -80,14 +84,7 @@ class PatientLocalDataSource {
 
       if (results.isEmpty) return null;
 
-      final patient = PatientModel.fromJson(results.first);
-
-      // Update Hive cache
-      await HiveService.savePatient(
-        hive_patient.PatientModel.fromJson(patient.toJson()),
-      );
-
-      return patient;
+      return PatientModel.fromJson(results.first);
     } catch (e) {
       LoggerUtil.error('Error getting patient by ID: $e');
       rethrow;
@@ -123,16 +120,26 @@ class PatientLocalDataSource {
         updatedAt: DateTime.now(),
       );
 
+      // Check if national ID is being changed and if it already exists
+      if (updatedPatient.nationalId != null &&
+          updatedPatient.nationalId!.isNotEmpty) {
+        final existing = await db.query(
+          'patients',
+          where: 'national_id = ? AND patient_id != ?',
+          whereArgs: [updatedPatient.nationalId, patient.patientId],
+          limit: 1,
+        );
+
+        if (existing.isNotEmpty) {
+          throw Exception('Patient with this national ID already exists');
+        }
+      }
+
       await db.update(
         'patients',
         updatedPatient.toJson(),
         where: 'patient_id = ?',
         whereArgs: [patient.patientId],
-      );
-
-      // Update Hive cache
-      await HiveService.savePatient(
-        hive_patient.PatientModel.fromJson(updatedPatient.toJson()),
       );
 
       LoggerUtil.info('Patient updated: ${updatedPatient.name}');
@@ -152,14 +159,6 @@ class PatientLocalDataSource {
         'patients',
         where: 'patient_id = ?',
         whereArgs: [patientId],
-      );
-
-      // Remove from Hive cache
-      final hiveBox = HiveService.getAllPatients();
-      await Future.wait(
-        hiveBox
-            .where((p) => p.patientId == patientId)
-            .map((p) => HiveService.savePatient(p)),
       );
 
       LoggerUtil.info('Patient deleted: $patientId');
@@ -210,6 +209,53 @@ class PatientLocalDataSource {
       };
     } catch (e) {
       LoggerUtil.error('Error getting patient stats: $e');
+      rethrow;
+    }
+  }
+
+  // Clear duplicate national IDs (utility function)
+  Future<void> clearDuplicateNationalIds() async {
+    try {
+      final db = await _databaseHelper.database;
+
+      // Get all patients with national IDs
+      final patients = await db.query(
+        'patients',
+        where: 'national_id IS NOT NULL',
+        orderBy: 'created_at ASC',
+      );
+
+      // Track seen national IDs
+      final seenIds = <String>{};
+      final duplicatePatientIds = <String>[];
+
+      for (final patient in patients) {
+        final nationalId = patient['national_id'] as String?;
+        final patientId = patient['patient_id'] as String;
+
+        if (nationalId != null && nationalId.isNotEmpty) {
+          if (seenIds.contains(nationalId)) {
+            duplicatePatientIds.add(patientId);
+          } else {
+            seenIds.add(nationalId);
+          }
+        }
+      }
+
+      // Set national_id to NULL for duplicates
+      for (final patientId in duplicatePatientIds) {
+        await db.update(
+          'patients',
+          {'national_id': null},
+          where: 'patient_id = ?',
+          whereArgs: [patientId],
+        );
+      }
+
+      LoggerUtil.info(
+          'Cleared ${duplicatePatientIds.length} duplicate national IDs');
+    } catch (e) {
+      LoggerUtil.error('Error clearing duplicate national IDs: $e');
       rethrow;
     }
   }
