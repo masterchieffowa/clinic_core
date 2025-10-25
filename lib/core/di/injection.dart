@@ -9,16 +9,13 @@
 // import '../../features/auth/domain/repositories/auth_repository.dart';
 // import '../../features/auth/domain/usecases/login_usecase.dart';
 // import '../../features/auth/presentation/bloc/auth_bloc.dart';
-
 // final GetIt getIt = GetIt.instance;
-
 // Future<void> configureDependencies() async {
 //   // Core Services
 //   getIt.registerLazySingleton<DatabaseHelper>(() => DatabaseHelper());
 //   getIt.registerLazySingleton<EncryptionService>(() => EncryptionService());
 //   getIt.registerLazySingleton<BackupManager>(() => BackupManager());
 //   getIt.registerLazySingleton<AutoBackupService>(() => AutoBackupService());
-
 //   // Auth
 //   getIt.registerLazySingleton<AuthRepository>(
 //     () => AuthRepositoryImpl(
@@ -26,20 +23,18 @@
 //       encryptionService: getIt<EncryptionService>(),
 //     ),a
 //   );
-
 //   getIt.registerLazySingleton<LoginUseCase>(
 //     () => LoginUseCase(getIt<AuthRepository>()),
 //   );
-
 //   getIt.registerFactory<AuthBloc>(
 //     () => AuthBloc(loginUseCase: getIt<LoginUseCase>()),
 //   );
-
 //   // Add more dependencies as needed...
 // }
 // File Path: lib/core/di/injection.dart
 // ✅ FINAL CONFIRMED VERSION - Use this exact content
 
+import 'package:clinic_core/features/patient/data/datasources/patient_local_datasource.dart';
 import 'package:get_it/get_it.dart';
 import '../database/sqlite/database_helper.dart';
 import '../database/encryption/encryption_service.dart';
@@ -66,4 +61,10 @@ Future<void> configureDependencies() async {
 
   // Create default admin user (username: admin, password: admin123)
   await getIt<AuthLocalDataSource>().createDefaultAdmin();
+
+  getIt.registerLazySingleton<PatientLocalDataSource>(
+    () => PatientLocalDataSource(
+      databaseHelper: getIt<DatabaseHelper>(),
+    ),
+  );
 }

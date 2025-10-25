@@ -1,3 +1,4 @@
+import '../../../patient/presentation/pages/patients_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -54,41 +55,82 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       body: Row(
         children: [
           // Sidebar
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            extended: true,
-            backgroundColor: colorScheme.surface,
-            leading: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.medical_services_rounded,
-                    size: 48,
-                    color: colorScheme.primary,
+          Container(
+            width: 250,
+            color: colorScheme.surface,
+            child: Column(
+              children: [
+                // Logo Section
+                Container(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.medical_services_rounded,
+                        size: 48,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'One Minute\nClinic',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'One Minute\nClinic',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
+                ),
+
+                const Divider(),
+
+                // Menu Items
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: _menuTitles.length,
+                    itemBuilder: (context, index) {
+                      final isSelected = _selectedIndex == index;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        child: ListTile(
+                          selected: isSelected,
+                          selectedTileColor: colorScheme.primaryContainer,
+                          leading: Icon(
+                            _menuIcons[index],
+                            color: isSelected
+                                ? colorScheme.onPrimaryContainer
+                                : null,
+                          ),
+                          title: Text(
+                            _menuTitles[index],
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedIndex = index;
+                            });
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
-            ),
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
+                ),
+
+                const Divider(),
+
+                // User Profile Section
+                Container(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -106,7 +148,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
                         currentUser?.name ?? 'User',
                         style: const TextStyle(
@@ -115,7 +157,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         currentUser?.displayRole ?? 'Role',
                         style: TextStyle(
@@ -125,7 +169,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
-                        // width: double.maxFinite,
+                        width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: _handleLogout,
                           icon: const Icon(Icons.logout_rounded, size: 18),
@@ -138,18 +182,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     ],
                   ),
                 ),
-              ),
-            ),
-            destinations: List.generate(
-              _menuTitles.length,
-              (index) => NavigationRailDestination(
-                icon: Icon(_menuIcons[index]),
-                selectedIcon: Icon(_menuIcons[index]),
-                label: Text(_menuTitles[index]),
-              ),
+              ],
             ),
           ),
 
+          // Vertical Divider
           const VerticalDivider(thickness: 1, width: 1),
 
           // Main Content
@@ -170,7 +207,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       case 2:
         return _buildPlaceholder('Waiting List', Icons.hourglass_empty_rounded);
       case 3:
-        return _buildPlaceholder('Patients', Icons.people_rounded);
+        return const PatientsPage();
       case 4:
         return _buildPlaceholder('Medical Records', Icons.folder_rounded);
       case 5:
