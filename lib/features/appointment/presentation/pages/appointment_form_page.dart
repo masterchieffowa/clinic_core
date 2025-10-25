@@ -1,5 +1,3 @@
-// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\appointment\presentation\pages\appointment_form_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +5,8 @@ import '../../domain/entities/appointment_entity.dart';
 import '../../data/models/appointment_model.dart';
 import '../../../patient/domain/entities/patient_entity.dart';
 import '../../../patient/data/datasources/patient_local_datasource.dart';
+import '../../../patient/presentation/pages/patient_form_page.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/database/sqlite/database_helper.dart';
 import 'appointments_page.dart';
@@ -39,6 +39,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
   final _feesController = TextEditingController();
+  final _patientSearchController = TextEditingController();
 
   PatientEntity? _selectedPatient;
   DateTime? _selectedDate;
@@ -48,6 +49,8 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   int _duration = 30;
   bool _isPaid = false;
   bool _isLoading = false;
+  List<PatientEntity> _filteredPatients = [];
+  bool _showPatientDropdown = false;
 
   final List<String> _priorities = ['emergency', 'urgent', 'normal', 'routine'];
   final List<String> _statuses = [
@@ -94,14 +97,42 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     _reasonController.dispose();
     _notesController.dispose();
     _feesController.dispose();
+    _patientSearchController.dispose();
     super.dispose();
   }
 
+  void _searchPatients(String query, List<PatientEntity> allPatients) {
+    if (query.isEmpty) {
+      setState(() {
+        _filteredPatients = [];
+        _showPatientDropdown = false;
+      });
+      return;
+    }
+
+    final searchQuery = query.toLowerCase();
+    setState(() {
+      _filteredPatients = allPatients.where((patient) {
+        return patient.name.toLowerCase().contains(searchQuery) ||
+            patient.phone.contains(searchQuery) ||
+            (patient.nationalId?.contains(searchQuery) ?? false);
+      }).toList();
+      _showPatientDropdown = _filteredPatients.isNotEmpty;
+    });
+  }
+
   Future<void> _selectDate() async {
+    // ✅ FIX: Ensure initialDate is not before firstDate
+    final now = DateTime.now();
+    final initialDate = _selectedDate ?? now;
+
+    // If selected date is in the past, use today instead
+    final safeInitialDate = initialDate.isBefore(now) ? now : initialDate;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: safeInitialDate,
+      firstDate: now, // Start from today
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
 
@@ -144,8 +175,9 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     final timeString =
         '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
 
-    // Get current user (assuming admin for now)
-    const currentUserId = 'admin-user-id'; // TODO: Get from auth provider
+    // ✅ FIX: Get actual user ID from auth provider
+    final currentUser = ref.read(currentUserProvider);
+    final currentUserId = currentUser?.userId ?? 'default-admin-id';
 
     final appointment = AppointmentModel(
       appointmentId: widget.appointment?.appointmentId ?? '',
@@ -170,7 +202,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
       updatedAt: DateTime.now(),
     );
 
-    // Import the provider from appointments_page.dart
     final success = widget.appointment == null
         ? await ref
             .read(appointmentsProvider.notifier)
@@ -202,7 +233,6 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
   }
 
   double _calculatePriorityScore() {
-    // Simple priority scoring
     switch (_selectedPriority) {
       case 'emergency':
         return 100.0;
@@ -217,37 +247,20 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
     }
   }
 
-  @override
+  void _addNewPatient() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const PatientFormPage(),
+      ),
+    );
 
-  /// Builds the appointment form page.
-  ///
-  /// This page is used to book a new appointment or edit an existing one.
-  ///
-  /// It takes a [AppointmentEntity] object as a parameter, which is used to prefill
-  /// the form fields if the appointment is being edited.
-  ///
-  /// The page contains the following sections:
-  ///
-  /// - Patient Information: Patient selection dropdown, date and time pickers,
-  ///     and a duration dropdown.
-  ///
-  /// - Priority & Status: Priority dropdown and status dropdown.
-  ///
-  /// - Appointment Details: Reason for visit text field and additional notes text field.
-  ///
-  /// - Payment Information: Fees text field and a checkbox to indicate if the appointment has been paid.
-  ///
-  /// If the appointment is being edited, the page will display the existing values in the
-  /// form fields. If the appointment is being booked, the form fields will be empty.
-  ///
-  /// When the save button is pressed, the page will validate the form fields and then
-  /// save the appointment to the database. If the appointment is being edited, the page
-  /// will update the existing appointment in the database. If the appointment is being
-  /// booked, the page will create a new appointment in the database.
-  ///
-  /// The page will display a loading indicator while the appointment is being saved
-  /// to the database. If there is an error while saving the appointment, the page
-  /// will display an error message.
+    if (result == true && mounted) {
+      // Refresh patients list
+      ref.invalidate(patientsListProvider);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final patientsAsync = ref.watch(patientsListProvider);
     final isEditMode = widget.appointment != null;
@@ -280,39 +293,143 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            // Patient Selection
+            // Patient Selection with Search
             _buildSectionTitle('Patient Information'),
             const SizedBox(height: 16),
 
             patientsAsync.when(
-              data: (patients) => DropdownButtonFormField<PatientEntity>(
-                initialValue: _selectedPatient,
-                decoration: InputDecoration(
-                  labelText: 'Select Patient',
-                  prefixIcon: const Icon(Icons.person),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              data: (patients) => Column(
+                children: [
+                  // Search Field
+                  TextFormField(
+                    controller: _patientSearchController,
+                    decoration: InputDecoration(
+                      labelText: 'Search Patient',
+                      hintText: 'Type name, phone, or national ID',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _selectedPatient != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedPatient = null;
+                                  _patientSearchController.clear();
+                                  _filteredPatients = [];
+                                  _showPatientDropdown = false;
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    onChanged: (value) => _searchPatients(value, patients),
+                    enabled: !isEditMode,
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                ),
-                items: patients.map((patient) {
-                  return DropdownMenuItem(
-                    value: patient,
-                    child: Text('${patient.name} - ${patient.phone}'),
-                  );
-                }).toList(),
-                onChanged: isEditMode
-                    ? null
-                    : (value) => setState(() => _selectedPatient = value),
-                validator: (value) {
-                  if (value == null) return 'Please select a patient';
-                  return null;
-                },
+
+                  // Selected Patient Display
+                  if (_selectedPatient != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.green,
+                            child: Text(
+                              _selectedPatient!.name[0].toUpperCase(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selectedPatient!.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  '${_selectedPatient!.phone} • ${_selectedPatient!.age} years',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.check_circle, color: Colors.green),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Search Results Dropdown
+                  if (_showPatientDropdown && _selectedPatient == null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                      ),
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _filteredPatients.length,
+                        itemBuilder: (context, index) {
+                          final patient = _filteredPatients[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue[100],
+                              child: Text(
+                                patient.name[0].toUpperCase(),
+                                style: const TextStyle(color: Colors.blue),
+                              ),
+                            ),
+                            title: Text(patient.name),
+                            subtitle:
+                                Text('${patient.phone} • ${patient.age} years'),
+                            onTap: () {
+                              setState(() {
+                                _selectedPatient = patient;
+                                _patientSearchController.text = patient.name;
+                                _showPatientDropdown = false;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                  // Add New Patient Button
+                  if (_selectedPatient == null && !isEditMode) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _addNewPatient,
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Patient Not Found? Add New Patient'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Text('Error loading patients: $error'),
             ),
+
             const SizedBox(height: 24),
 
             // Date & Time Section
@@ -370,7 +487,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
             const SizedBox(height: 16),
 
             DropdownButtonFormField<int>(
-              initialValue: _duration,
+              value: _duration,
               decoration: InputDecoration(
                 labelText: 'Duration',
                 prefixIcon: const Icon(Icons.timelapse),
@@ -398,7 +515,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedPriority,
+                    value: _selectedPriority,
                     decoration: InputDecoration(
                       labelText: 'Priority',
                       prefixIcon: const Icon(Icons.priority_high),
@@ -422,7 +539,7 @@ class _AppointmentFormPageState extends ConsumerState<AppointmentFormPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedStatus,
+                    value: _selectedStatus,
                     decoration: InputDecoration(
                       labelText: 'Status',
                       prefixIcon: const Icon(Icons.circle),

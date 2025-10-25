@@ -1,8 +1,3 @@
-// ============================================================================
-// File: lib/features/patient/data/datasources/patient_local_datasource.dart
-// ✅ FIXED VERSION - Handles null values and duplicate national IDs
-// ============================================================================
-
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/database/sqlite/database_helper.dart';

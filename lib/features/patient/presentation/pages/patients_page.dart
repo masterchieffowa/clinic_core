@@ -1,5 +1,3 @@
-// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\patient\presentation\pages\patients_page.dart
-
 import 'package:clinic_core/features/patient/presentation/pages/patient_form_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

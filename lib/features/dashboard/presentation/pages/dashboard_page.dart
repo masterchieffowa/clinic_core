@@ -1,8 +1,7 @@
-// E:\Projects\Flutter Projects\Clinic Management System\clinic_core\lib\features\dashboard\presentation\pages\dashboard_page.dart
-
-import '../../../patient/presentation/pages/patients_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../patient/presentation/pages/patients_page.dart';
+import '../../../appointment/presentation/pages/appointments_page.dart'; // ✅ NEW IMPORT
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../widgets/dashboard_home.dart';
@@ -205,7 +204,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       case 0:
         return const DashboardHome();
       case 1:
-        return _buildPlaceholder('Calendar', Icons.calendar_month_rounded);
+        return const AppointmentsPage();
       case 2:
         return _buildPlaceholder('Waiting List', Icons.hourglass_empty_rounded);
       case 3:
