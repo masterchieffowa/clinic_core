@@ -28,7 +28,7 @@ class AppointmentLocalDataSource {
       await db.insert('appointments', appointmentWithId.toJson());
 
       LoggerUtil.info(
-          'Appointment created: ${appointmentWithId.appointmentId}');
+          'Appointment created: ${appointmentWithId.appointmentId} for ${appointmentWithId.patientName}');
       return appointmentWithId;
     } catch (e) {
       LoggerUtil.error('Error creating appointment: $e');
@@ -45,11 +45,18 @@ class AppointmentLocalDataSource {
       final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59)
           .millisecondsSinceEpoch;
 
+      // ✅ UPDATED: Handle visitors and medical reps with LEFT JOIN
       final results = await db.rawQuery(
         '''
-        SELECT a.*, p.name as patient_name
+        SELECT 
+          a.*,
+          CASE 
+            WHEN a.patient_id = 'visitor' THEN a.patient_id
+            WHEN a.patient_id = 'medical_rep' THEN a.patient_id
+            ELSE COALESCE(p.name, 'Unknown Patient')
+          END as patient_name
         FROM appointments a
-        JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
         WHERE a.appointment_date >= ? AND a.appointment_date <= ?
         ORDER BY a.appointment_time ASC
         ''',
@@ -68,11 +75,18 @@ class AppointmentLocalDataSource {
     try {
       final db = await _databaseHelper.database;
 
+      // ✅ UPDATED: Handle visitors and medical reps with LEFT JOIN
       final results = await db.rawQuery(
         '''
-        SELECT a.*, p.name as patient_name
+        SELECT 
+          a.*,
+          CASE 
+            WHEN a.patient_id = 'visitor' THEN a.patient_id
+            WHEN a.patient_id = 'medical_rep' THEN a.patient_id
+            ELSE COALESCE(p.name, 'Unknown Patient')
+          END as patient_name
         FROM appointments a
-        JOIN patients p ON a.patient_id = p.patient_id
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
         ORDER BY a.appointment_date DESC, a.appointment_time ASC
         LIMIT 100
         ''',
@@ -176,6 +190,53 @@ class AppointmentLocalDataSource {
       };
     } catch (e) {
       LoggerUtil.error('Error getting appointment stats: $e');
+      rethrow;
+    }
+  }
+
+  //  NEW: Get appointments by type
+  Future<Map<String, int>> getAppointmentsByType() async {
+    try {
+      final db = await _databaseHelper.database;
+      final now = DateTime.now();
+      final todayStart =
+          DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
+      final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59)
+          .millisecondsSinceEpoch;
+
+      final patients = Sqflite.firstIntValue(
+            await db.rawQuery(
+              """SELECT COUNT(*) FROM appointments 
+                 WHERE appointment_date >= ? AND appointment_date <= ? 
+                 AND patient_id NOT IN ('visitor', 'medical_rep')""",
+              [todayStart, todayEnd],
+            ),
+          ) ??
+          0;
+
+      final visitors = Sqflite.firstIntValue(
+            await db.rawQuery(
+              "SELECT COUNT(*) FROM appointments WHERE appointment_date >= ? AND appointment_date <= ? AND patient_id = 'visitor'",
+              [todayStart, todayEnd],
+            ),
+          ) ??
+          0;
+
+      final medicalReps = Sqflite.firstIntValue(
+            await db.rawQuery(
+              "SELECT COUNT(*) FROM appointments WHERE appointment_date >= ? AND appointment_date <= ? AND patient_id = 'medical_rep'",
+              [todayStart, todayEnd],
+            ),
+          ) ??
+          0;
+
+      return {
+        'patients': patients,
+        'visitors': visitors,
+        'medicalReps': medicalReps,
+      };
+    } catch (e) {
+      LoggerUtil.error('Error getting appointments by type: $e');
       rethrow;
     }
   }

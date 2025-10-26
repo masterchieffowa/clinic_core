@@ -23,10 +23,32 @@ class AppointmentModel extends AppointmentEntity {
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
+    // ✅ FIX: Extract visitor/rep name from notes if it's a special ID
+    String patientName;
+    final patientId = json['patient_id'] as String;
+
+    if (patientId == 'visitor' || patientId == 'medical_rep') {
+      // Try to extract name from notes
+      final notes = json['notes'] as String?;
+      if (notes != null && notes.startsWith('Name: ')) {
+        // Extract name from "Name: John Doe\n..." format
+        final lines = notes.split('\n');
+        patientName = lines[0].substring(6); // Remove "Name: " prefix
+      } else {
+        // Fallback to default names
+        patientName = patientId == 'visitor'
+            ? 'Walk-in Visitor'
+            : 'Medical Representative';
+      }
+    } else {
+      // Regular patient - use the joined name from database
+      patientName = json['patient_name'] as String? ?? 'Unknown Patient';
+    }
+
     return AppointmentModel(
       appointmentId: json['appointment_id'] as String,
-      patientId: json['patient_id'] as String,
-      patientName: json['patient_name'] as String? ?? '',
+      patientId: patientId,
+      patientName: patientName, // ✅ Now correctly extracts visitor/rep names
       receptionistId: json['receptionist_id'] as String,
       appointmentDate:
           DateTime.fromMillisecondsSinceEpoch(json['appointment_date'] as int),

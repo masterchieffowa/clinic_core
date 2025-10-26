@@ -64,28 +64,51 @@ class DatabaseTables {
   ''';
 
   // Appointments Table
+  // static const String createAppointmentsTable = '''
+  //   CREATE TABLE appointments (
+  //     appointment_id TEXT PRIMARY KEY,
+  //     patient_id TEXT NOT NULL,
+  //     receptionist_id TEXT NOT NULL,
+  //     appointment_date INTEGER NOT NULL,
+  //     appointment_time TEXT NOT NULL,
+  //     duration INTEGER NOT NULL DEFAULT 30,
+  //     reason TEXT,
+  //     priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('emergency', 'urgent', 'normal', 'routine')),
+  //     priority_score REAL NOT NULL DEFAULT 0,
+  //     status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'waiting', 'in_progress', 'completed', 'cancelled', 'no_show')),
+  //     arrival_time INTEGER,
+  //     fees REAL,
+  //     is_paid INTEGER NOT NULL DEFAULT 0,
+  //     notes TEXT,
+  //     created_at INTEGER NOT NULL,
+  //     updated_at INTEGER NOT NULL,
+  //     FOREIGN KEY (patient_id) REFERENCES patients (patient_id) ON DELETE CASCADE,
+  //     FOREIGN KEY (receptionist_id) REFERENCES users (user_id)
+  //   )
+  // ''';
+
   static const String createAppointmentsTable = '''
-    CREATE TABLE appointments (
-      appointment_id TEXT PRIMARY KEY,
-      patient_id TEXT NOT NULL,
-      receptionist_id TEXT NOT NULL,
-      appointment_date INTEGER NOT NULL,
-      appointment_time TEXT NOT NULL,
-      duration INTEGER NOT NULL DEFAULT 30,
-      reason TEXT,
-      priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('emergency', 'urgent', 'normal', 'routine')),
-      priority_score REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'waiting', 'in_progress', 'completed', 'cancelled', 'no_show')),
-      arrival_time INTEGER,
-      fees REAL,
-      is_paid INTEGER NOT NULL DEFAULT 0,
-      notes TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY (patient_id) REFERENCES patients (patient_id) ON DELETE CASCADE,
-      FOREIGN KEY (receptionist_id) REFERENCES users (user_id)
-    )
-  ''';
+  CREATE TABLE appointments (
+    appointment_id TEXT PRIMARY KEY,
+    patient_id TEXT NOT NULL,
+    receptionist_id TEXT NOT NULL,
+    appointment_date INTEGER NOT NULL,
+    appointment_time TEXT NOT NULL,
+    duration INTEGER NOT NULL DEFAULT 30,
+    reason TEXT,
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('emergency', 'urgent', 'normal', 'routine')),
+    priority_score REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'waiting', 'in_progress', 'completed', 'cancelled', 'no_show')),
+    arrival_time INTEGER,
+    fees REAL,
+    is_paid INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (receptionist_id) REFERENCES users (user_id)
+    -- ✅ REMOVED: FOREIGN KEY (patient_id) REFERENCES patients (patient_id) ON DELETE CASCADE
+  )
+''';
 
   // QMRA Tests Table
   static const String createQMRATestsTable = '''
